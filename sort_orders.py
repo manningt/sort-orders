@@ -1,0 +1,120 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "pypdf>=3.0.0",
+# ]
+# ///
+'''
+This program parses a PDF contain multiple client's orders and sorts the orders alphabetically within their 10 minute time slot.
+A client's order starts as follows:
+Shopping List
+Client Name: John Doe
+Household Size: 3
+Visit Date: 11/7/2025, 4:20pm
+
+'''
+
+import sys
+import os
+import logging
+logging.basicConfig()
+logging.getLogger().setLevel(logging.DEBUG)
+
+import argparse
+from datetime import datetime
+
+# from enum import IntEnum
+# import array as arr
+# import tkinter as tk
+# from tkinter import filedialog
+# import json
+
+try:
+   from pypdf import PdfReader, PdfWriter
+except:
+   sys.exit('failed to load pypdf')
+
+
+def parse_pdf(filename):
+
+   #the client tuple is:
+   # print(f'{client_first_pageno},{number_of_pages},{day_of_week},{visit_time_hour},{visit_time_slot},{client_name_str}')
+   # and it is sorted by {day_of_week},{visit_time_hour},{visit_time_slot},{client_name_str}
+
+   client_tuple_list = []
+   page_content_list = []
+
+   reader = PdfReader(filename)
+   print(f'Number of pages in PDF: {len(reader.pages)}')
+   client_first_pageno = 0
+   for pageno in range(len(reader.pages)):
+      page = reader.pages[pageno]
+      page_content_list.append(page)
+      text = page.extract_text() 
+      # print(text + '\n')
+      next_line_is_client_name = False
+      next_line_is_visit_date = False
+      lines = text.split("\n")
+      for lineno, line in enumerate(lines):
+         if next_line_is_client_name:
+            next_line_is_client_name = False
+            client_name_list = line.split(' ')
+            # put first name last
+            first = client_name_list.pop(0)
+            client_name_list.append(first)
+            client_name_str = ' '.join(client_name_list)
+         if line.startswith("Client Name:"):
+            next_line_is_client_name = True
+
+         if line.startswith("Visit Date:"):
+            # format: Visit Date: 11/7/2025, 4:20pm
+            visit_datetime_str = line[12:].strip()
+            # print(visit_datetime_str)
+            visit_date_str = visit_datetime_str.split(',')[0].strip()
+            # print(visit_date_str)
+            parsed_date = datetime.strptime(visit_date_str, '%m/%d/%Y')
+            # day_name_str = parsed_date.strftime('%A')
+            day_of_week = parsed_date.weekday()  # Monday is 0 and Sunday is 6
+
+            visit_time_str = visit_datetime_str.split(',')[1].strip()
+            # print(visit_time_str)
+            visit_time_obj = datetime.strptime(visit_time_str, '%I:%M%p')
+            visit_time_hour = visit_time_obj.hour
+            visit_time_slot = int(str(visit_time_obj.minute)[0]) # first digit of minute
+
+         if line.startswith("END OF SHOPPING LIST"):
+            number_of_pages = pageno - client_first_pageno + 1
+            client_tuple=(client_first_pageno,number_of_pages,day_of_week,visit_time_hour,visit_time_slot,client_name_str)
+            # print(f'{client_tuple}')
+            client_tuple_list.append(client_tuple)
+            client_first_pageno = pageno +1
+      # if pageno > 31:
+      #    break
+
+   return client_tuple_list, page_content_list
+
+def write_pdf(client_tuple_list, page_content_list, filepath):
+         writer = PdfWriter() 
+   #       writer.add_page(page)
+   #       customer_name_for_filename = customer_name_str.replace(" ","_")
+   #       customer_name_for_filename = customer_name_for_filename.replace("&","")
+   #       out_filename = f'{customer_name_for_filename}_invoice_{invoice_num}.pdf'
+   #       out_file = open(out_filename,'wb') 
+   #       writer.write(out_file) 
+   #       out_file.close()
+
+if __name__ == "__main__":
+
+   pdf_filename = 'pickup-orders.pdf'
+
+   client_tuple_list, page_content_list = parse_pdf(pdf_filename)
+
+   sorted_client_tuple_list = sorted(client_tuple_list, key=lambda tuple: (tuple[2], tuple[3], tuple[4], tuple[5]))
+
+   for client_tuple in sorted_client_tuple_list:
+      print(f'{client_tuple}')
+   
+
+
+
