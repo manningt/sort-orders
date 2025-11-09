@@ -40,7 +40,6 @@ def parse_pdf(filename):
 
    #the client tuple is:
    # print(f'{client_first_pageno},{number_of_pages},{day_of_week},{visit_time_hour},{visit_time_slot},{client_name_str}')
-   # and it is sorted by {day_of_week},{visit_time_hour},{visit_time_slot},{client_name_str}
 
    client_tuple_list = []
    page_content_list = []
@@ -95,14 +94,15 @@ def parse_pdf(filename):
    return client_tuple_list, page_content_list
 
 def write_pdf(client_tuple_list, page_content_list, filepath):
-         writer = PdfWriter() 
-   #       writer.add_page(page)
-   #       customer_name_for_filename = customer_name_str.replace(" ","_")
-   #       customer_name_for_filename = customer_name_for_filename.replace("&","")
-   #       out_filename = f'{customer_name_for_filename}_invoice_{invoice_num}.pdf'
-   #       out_file = open(out_filename,'wb') 
-   #       writer.write(out_file) 
-   #       out_file.close()
+         writer = PdfWriter()
+         for client in sorted_client_tuple_list:
+            number_of_pages = client[1]
+            for i in range(0,number_of_pages):
+               page_to_print = client[0] + i
+               writer.add_page(page_content_list[page_to_print])           
+         out_file = open(filepath,'wb') 
+         writer.write(out_file) 
+         out_file.close()
 
 if __name__ == "__main__":
 
@@ -110,11 +110,10 @@ if __name__ == "__main__":
 
    client_tuple_list, page_content_list = parse_pdf(pdf_filename)
 
+   # sort by {day_of_week},{visit_time_hour},{visit_time_slot},{client_name_str}
    sorted_client_tuple_list = sorted(client_tuple_list, key=lambda tuple: (tuple[2], tuple[3], tuple[4], tuple[5]))
 
-   for client_tuple in sorted_client_tuple_list:
-      print(f'{client_tuple}')
+   # for client_tuple in sorted_client_tuple_list:
+   #    print(f'{client_tuple}')
    
-
-
-
+   write_pdf(sorted_client_tuple_list, page_content_list, "/tmp/pickup-sorted.pdf")
