@@ -17,18 +17,9 @@ Visit Date: 11/7/2025, 4:20pm
 
 import sys
 import os
-import logging
-logging.basicConfig()
-logging.getLogger().setLevel(logging.DEBUG)
 
 import argparse
 from datetime import datetime
-
-# from enum import IntEnum
-# import array as arr
-# import tkinter as tk
-# from tkinter import filedialog
-# import json
 
 try:
    from pypdf import PdfReader, PdfWriter
@@ -37,7 +28,6 @@ except:
 
 
 def parse_pdf(filename):
-
    #the client tuple is:
    # print(f'{client_first_pageno},{number_of_pages},{day_of_week},{visit_time_hour},{visit_time_slot},{client_name_str}')
 
@@ -45,9 +35,10 @@ def parse_pdf(filename):
    page_content_list = []
 
    reader = PdfReader(filename)
-   print(f'Number of pages in PDF: {len(reader.pages)}')
+   number_of_pages = len(reader.pages)
+   print(f'Processing {filename} which has {number_of_pages} pages... This could take a few seconds')
    client_first_pageno = 0
-   for pageno in range(len(reader.pages)):
+   for pageno in range(number_of_pages):
       page = reader.pages[pageno]
       page_content_list.append(page)
       text = page.extract_text() 
@@ -94,26 +85,38 @@ def parse_pdf(filename):
    return client_tuple_list, page_content_list
 
 def write_pdf(client_tuple_list, page_content_list, filepath):
-         writer = PdfWriter()
-         for client in sorted_client_tuple_list:
-            number_of_pages = client[1]
-            for i in range(0,number_of_pages):
-               page_to_print = client[0] + i
-               writer.add_page(page_content_list[page_to_print])           
-         out_file = open(filepath,'wb') 
-         writer.write(out_file) 
-         out_file.close()
+   writer = PdfWriter()
+   for client in client_tuple_list:
+      number_of_pages = client[1]
+      for i in range(0,number_of_pages):
+         page_to_print = client[0] + i
+         writer.add_page(page_content_list[page_to_print])           
+   out_file = open(filepath,'wb') 
+   writer.write(out_file) 
+   out_file.close()
 
-if __name__ == "__main__":
+def process_file(input_filename, output_filename, output_directory="."):
 
-   pdf_filename = 'pickup-orders.pdf'
+   if not os.path.isdir(output_directory):
+      sys.exit(f"Failure: '{output_directory}' does not exists or is not a directory.")
+   output_pdf_path_filename = os.path.join(output_directory, output_filename)
 
-   client_tuple_list, page_content_list = parse_pdf(pdf_filename)
+   client_tuple_list, page_content_list = parse_pdf(input_filename)
 
-   # sort by {day_of_week},{visit_time_hour},{visit_time_slot},{client_name_str}
+   if len(client_tuple_list) == 0:
+      print("No clients found in {filename}")
+      return
+
+   # sort by {day_of_week},{visit_time_hour},{visit_time_slot},{client_name_str} 
    sorted_client_tuple_list = sorted(client_tuple_list, key=lambda tuple: (tuple[2], tuple[3], tuple[4], tuple[5]))
 
    # for client_tuple in sorted_client_tuple_list:
    #    print(f'{client_tuple}')
-   
-   write_pdf(sorted_client_tuple_list, page_content_list, "/tmp/pickup-sorted.pdf")
+   write_pdf(sorted_client_tuple_list, page_content_list, output_pdf_path_filename)
+
+
+if __name__ == "__main__":
+
+   input_filename = 'pickup-orders.pdf'
+
+   process_file(input_filename, "pickup-sorted.pdf", "/tmp")
